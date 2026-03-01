@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: game-design-platform
+    env: static
+    region: oregon
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviews: true
+    headers:
+      - path: /*
+        name: Content-Type
+        value: text/html; charset=utf-8
+      - path: /*.js
+        name: Content-Type
+        value: application/javascript; charset=utf-8
+      - path: /*.css
+        name: Content-Type
+        value: text/css; charset=utf-8
+      - path: /*.json
+        name: Content-Type
+        value: application/json

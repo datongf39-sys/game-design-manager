@@ -84,7 +84,7 @@ const DetailPanel = ({
           </div>
         ),
         duration: 5,
-        style={{ maxWidth: 600 }},
+        style: { maxWidth: 600 }
       });
       return;
     }
