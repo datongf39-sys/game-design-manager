@@ -25,6 +25,7 @@ import {
   Col,
   Tabs,
   Divider,
+  Switch,
 } from "antd";
 import {
   PlusOutlined,
@@ -49,10 +50,11 @@ const FIELD_TYPES = [
   { value: "select", label: "单选", color: "purple" },
   { value: "multiselect", label: "多选", color: "magenta" },
   { value: "date", label: "日期", color: "red" },
+  { value: "relation", label: "关联", color: "lime" },
 ];
 
 const FieldConfig = ({ visible, onClose }) => {
-  const { selectedModule, updateModuleFields, prefixes } = useProjectStore();
+  const { selectedModule, updateModuleFields, prefixes, modules } = useProjectStore();
 
   const [fields, setFields] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -109,13 +111,24 @@ const FieldConfig = ({ visible, onClose }) => {
   const handleEditField = (field) => {
     setEditingField(field);
     setActiveTab("basic");
-    form.setFieldsValue({
+    
+    // 准备表单值
+    const formValues = {
       name: field.name,
       type: field.type,
       dependsOn: field.dependsOn || undefined,
       options: field.options || [],
       optionsByParent: field.optionsByParent || {},
-    });
+    };
+    
+    // 如果是 relation 类型，加载 relationConfig
+    if (field.type === "relation" && field.relationConfig) {
+      formValues.targetModuleId = field.relationConfig.targetModuleId;
+      formValues.displayFieldId = field.relationConfig.displayFieldId;
+      formValues.multiple = field.relationConfig.multiple;
+    }
+    
+    form.setFieldsValue(formValues);
     setIsEditing(true);
   };
 
@@ -128,6 +141,17 @@ const FieldConfig = ({ visible, onClose }) => {
           name: values.name,
           type: values.type,
         };
+
+        // 保存关系配置
+        if (values.type === "relation") {
+          updatedField.relationConfig = {
+            targetModuleId: values.targetModuleId,
+            displayFieldId: values.displayFieldId,
+            multiple: values.multiple || false,
+          };
+        } else {
+          delete updatedField.relationConfig;
+        }
 
         // 保存依赖设置
         if (values.dependsOn) {
@@ -348,6 +372,65 @@ const FieldConfig = ({ visible, onClose }) => {
           >
             {({ getFieldValue }) => {
               const type = getFieldValue("type");
+              
+              // Relation 类型配置
+              if (type === "relation") {
+                return (
+                  <>
+                    <Form.Item
+                      label="目标模块"
+                      name="targetModuleId"
+                      rules={[{ required: true, message: "请选择目标模块" }]}
+                    >
+                      <Select placeholder="选择要关联的模块">
+                        {modules
+                          .filter(m => m.id !== selectedModule?.id) // 排除当前模块
+                          .map((m) => (
+                          <Option key={m.id} value={m.id}>
+                            {m.icon} {m.name}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                    
+                    <Form.Item
+                      noStyle
+                      shouldUpdate={(prev, curr) => prev.targetModuleId !== curr.targetModuleId}
+                    >
+                      {({ getFieldValue: getValue }) => {
+                        const targetModuleId = getValue("targetModuleId");
+                        const targetModule = modules.find(m => m.id === targetModuleId);
+                        
+                        return (
+                          <Form.Item
+                            label="显示字段"
+                            name="displayFieldId"
+                            rules={[{ required: true, message: "请选择显示字段" }]}
+                          >
+                            <Select placeholder="选择要显示的字段">
+                              {targetModule?.fields?.map((f) => (
+                                <Option key={f.id} value={f.id}>
+                                  {f.name} ({f.type})
+                                </Option>
+                              ))}
+                            </Select>
+                          </Form.Item>
+                        );
+                      }}
+                    </Form.Item>
+                    
+                    <Form.Item
+                      label="多选"
+                      name="multiple"
+                      valuePropName="checked"
+                    >
+                      <Switch />
+                    </Form.Item>
+                  </>
+                );
+              }
+              
+              // Select/MultiSelect 类型配置
               if (type === "select" || type === "multiselect") {
                 const tabItems = [
                   {

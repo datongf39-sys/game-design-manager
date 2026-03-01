@@ -341,15 +341,39 @@ export const useProjectStore = create((set, get) => ({
 
   /**
    * 删除记录
-   * @param {string} recordId - 记录ID
+   * @param {string} recordId - 记录 ID
+   * @param {boolean} forceDelete - 是否强制删除（忽略引用检查）
+   * @returns {Object} 删除结果 { success: boolean, error?: string, backlinks?: Array }
    */
-  deleteRecord: (recordId) => {
+  deleteRecord: (recordId, forceDelete = false) => {
     const { selectedModule, records } = get();
-    if (!selectedModule) return;
+    if (!selectedModule) return { success: false, error: "未选中模块" };
+
+    // 检查是否有其他记录引用了这条记录（删除保护）
+    if (!forceDelete) {
+      const backlinks = storage.getBacklinks(recordId);
+      if (backlinks && backlinks.length > 0) {
+        return {
+          success: false,
+          error: `该记录被 ${backlinks.length} 条其他记录引用，无法删除`,
+          backlinks,
+        };
+      }
+    }
 
     const updated = records.filter((r) => r.id !== recordId);
     storage.setRecords(selectedModule.id, updated);
     set({ records: updated });
+    return { success: true };
+  },
+
+  /**
+   * 获取引用了当前记录的所有来源记录
+   * @param {string} recordId - 记录 ID
+   * @returns {Array} 反向关联列表
+   */
+  getBacklinks: (recordId) => {
+    return storage.getBacklinks(recordId) || [];
   },
 
   // ==================== Prefix Actions ====================

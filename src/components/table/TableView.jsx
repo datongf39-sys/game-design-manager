@@ -39,6 +39,8 @@ import { CellEditor, CellDisplay } from "./CellEditor";
 import { GroupView } from "./GroupView";
 import RichTextEditor from "./RichTextEditor";
 import TreeView from "./TreeView";
+import RelationSearchModal from "../relation/RelationSearchModal";
+import { storage } from "../../utils/storage";
 
 // 行高配置
 const ROW_HEIGHTS = {
@@ -66,6 +68,10 @@ const TableView = ({ onFieldConfig }) => {
   const [sortConfig, setSortConfig] = useState(null); // { fieldId, order: 'asc' | 'desc' }
   const [isRichTextModalOpen, setIsRichTextModalOpen] = useState(false);
   const [richTextValue, setRichTextValue] = useState("");
+  
+  // Relation 弹窗状态
+  const [isRelationModalOpen, setIsRelationModalOpen] = useState(false);
+  const [relationConfig, setRelationConfig] = useState(null); // { recordId, fieldId, targetModuleId, displayFieldId, multiple, selectedIds }
 
   // 获取分组字段（用于确定前缀）
   const groupFieldForPrefix = useMemo(() => {
@@ -158,11 +164,50 @@ const TableView = ({ onFieldConfig }) => {
 
   // 处理添加记录
   const handleAddRecord = () => {
-    // 传入分组字段ID，用于确定前缀
+    // 传入分组字段 ID，用于确定前缀
     const newRecord = addRecord({}, groupFieldForPrefix?.id);
     if (newRecord) {
       message.success(`已创建记录 ${newRecord.id}`);
     }
+  };
+
+  // 处理 relation 字段编辑
+  const handleRelationEdit = (record, field) => {
+    const currentValue = record.data[field.id] || [];
+    const ids = Array.isArray(currentValue) ? currentValue : [currentValue].filter(Boolean);
+    
+    setRelationConfig({
+      recordId: record.id,
+      fieldId: field.id,
+      targetModuleId: field.relationConfig?.targetModuleId,
+      displayFieldId: field.relationConfig?.displayFieldId,
+      multiple: field.relationConfig?.multiple || false,
+      selectedIds: ids,
+    });
+    
+    setIsRelationModalOpen(true);
+  };
+
+  // 处理 relation 确认
+  const handleRelationConfirm = (selectedIds) => {
+    if (!relationConfig) return;
+    
+    const { recordId, fieldId, multiple } = relationConfig;
+    
+    // 更新记录
+    const finalValue = multiple ? selectedIds : (selectedIds[0] || null);
+    updateRecord(recordId, { data: { [fieldId]: finalValue } });
+    
+    // 保存到 relations 表
+    if (Array.isArray(selectedIds) && selectedIds.length > 0) {
+      storage.setRelations(recordId, fieldId, selectedIds);
+    } else {
+      storage.removeRelations(recordId, fieldId);
+    }
+    
+    setIsRelationModalOpen(false);
+    setRelationConfig(null);
+    message.success("关联关系已保存");
   };
 
   // 处理删除记录
@@ -241,6 +286,7 @@ const TableView = ({ onFieldConfig }) => {
                 }}
                 onBlur={handleSave}
                 recordData={record.data}
+                onOpenSearchModal={field.type === "relation" ? () => handleRelationEdit(record, field) : undefined}
               />
             );
           }
@@ -442,6 +488,22 @@ const TableView = ({ onFieldConfig }) => {
         visible={isRichTextModalOpen}
         onClose={handleRichTextSave}
       />
+
+      {/* 关联搜索弹窗 */}
+      {relationConfig && (
+        <RelationSearchModal
+          visible={isRelationModalOpen}
+          onClose={() => {
+            setIsRelationModalOpen(false);
+            setRelationConfig(null);
+          }}
+          onConfirm={handleRelationConfirm}
+          targetModuleId={relationConfig.targetModuleId}
+          displayFieldId={relationConfig.displayFieldId}
+          selectedIds={relationConfig.selectedIds}
+          multiple={relationConfig.multiple}
+        />
+      )}
     </div>
   );
 };

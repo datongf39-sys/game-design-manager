@@ -80,8 +80,139 @@ export const storage = {
 
   /**
    * 保存指定模块的记录列表
-   * @param {string} moduleId - 模块ID
+   * @param {string} moduleId - 模块 ID
    * @param {Array} records - 记录列表
    */
   setRecords: (moduleId, records) => storage.set(`records_${moduleId}`, records),
+
+  /**
+   * 获取引用了当前记录的所有反向关联
+   * @param {string} recordId - 记录 ID
+   * @returns {Array} 反向关联列表，包含 sourceRecordId, sourceFieldId, sourceRecordName, sourceModuleId, sourceFieldName
+   */
+  getBacklinks: (recordId) => {
+    try {
+      const allRelations = storage.get("relations") || [];
+      const backlinks = allRelations.filter(rel => rel.targetRecordId === recordId);
+      
+      // 补充来源记录的详细信息
+      return backlinks.map(link => {
+        // 遍历所有模块查找来源记录
+        const allProjects = storage.get("projects") || [];
+        let sourceRecord = null;
+        let sourceModule = null;
+        let sourceFieldName = null;
+        
+        for (const projectId of allProjects.map(p => p.id)) {
+          const modules = storage.get(`modules_${projectId}`) || [];
+          for (const module of modules) {
+            const records = storage.get(`records_${module.id}`) || [];
+            const record = records.find(r => r.id === link.sourceRecordId);
+            if (record) {
+              sourceRecord = record;
+              sourceModule = module;
+              const field = module.fields?.find(f => f.id === link.sourceFieldId);
+              sourceFieldName = field?.name || "未知字段";
+              break;
+            }
+          }
+          if (sourceRecord) break;
+        }
+        
+        return {
+          sourceRecordId: link.sourceRecordId,
+          sourceFieldId: link.sourceFieldId,
+          sourceFieldName,
+          sourceModuleId: sourceModule?.id,
+          sourceModuleName: sourceModule?.name,
+          sourceRecordName: sourceRecord?.data?.[Object.keys(sourceRecord.data || {})[0]] || "未命名",
+        };
+      });
+    } catch (e) {
+      console.error("storage.getBacklinks error:", recordId, e);
+      return [];
+    }
+  },
+
+  /**
+   * 创建关联关系
+   * @param {string} sourceRecordId - 来源记录 ID
+   * @param {string} sourceFieldId - 来源字段 ID
+   * @param {string} targetRecordId - 目标记录 ID
+   * @returns {Object} 创建的关联对象
+   */
+  addRelation: (sourceRecordId, sourceFieldId, targetRecordId) => {
+    try {
+      const allRelations = storage.get("relations") || [];
+      
+      // 删除已存在的相同关联
+      const filtered = allRelations.filter(
+        rel => !(rel.sourceRecordId === sourceRecordId && 
+                 rel.sourceFieldId === sourceFieldId && 
+                 rel.targetRecordId === targetRecordId)
+      );
+      
+      const newRelation = {
+        id: `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        sourceRecordId,
+        sourceFieldId,
+        targetRecordId,
+        createdAt: new Date().toISOString(),
+      };
+      
+      const updated = [...filtered, newRelation];
+      storage.set("relations", updated);
+      return newRelation;
+    } catch (e) {
+      console.error("storage.addRelation error:", e);
+      return null;
+    }
+  },
+
+  /**
+   * 批量创建关联关系
+   * @param {string} sourceRecordId - 来源记录 ID
+   * @param {string} sourceFieldId - 来源字段 ID
+   * @param {Array} targetRecordIds - 目标记录 ID 数组
+   */
+  setRelations: (sourceRecordId, sourceFieldId, targetRecordIds) => {
+    try {
+      const allRelations = storage.get("relations") || [];
+      
+      // 删除该字段下已存在的所有关联
+      const filtered = allRelations.filter(
+        rel => !(rel.sourceRecordId === sourceRecordId && rel.sourceFieldId === sourceFieldId)
+      );
+      
+      // 添加新的关联
+      const newRelations = targetRecordIds.map(targetId => ({
+        id: `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        sourceRecordId,
+        sourceFieldId,
+        targetRecordId: targetId,
+        createdAt: new Date().toISOString(),
+      }));
+      
+      storage.set("relations", [...filtered, ...newRelations]);
+    } catch (e) {
+      console.error("storage.setRelations error:", e);
+    }
+  },
+
+  /**
+   * 删除关联关系
+   * @param {string} sourceRecordId - 来源记录 ID
+   * @param {string} sourceFieldId - 来源字段 ID
+   */
+  removeRelations: (sourceRecordId, sourceFieldId) => {
+    try {
+      const allRelations = storage.get("relations") || [];
+      const filtered = allRelations.filter(
+        rel => !(rel.sourceRecordId === sourceRecordId && rel.sourceFieldId === sourceFieldId)
+      );
+      storage.set("relations", filtered);
+    } catch (e) {
+      console.error("storage.removeRelations error:", e);
+    }
+  },
 };

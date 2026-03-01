@@ -5,8 +5,9 @@
  * 支持联动过滤：当字段有 dependsOn 时，根据依赖字段的值过滤选项
  */
 
-import React, { useMemo, useRef } from "react";
-import { Input, InputNumber, Checkbox, Select, DatePicker, Tag } from "antd";
+import React, { useMemo, useRef, useState } from "react";
+import { Input, InputNumber, Checkbox, Select, DatePicker, Tag, Button } from "antd";
+import RelationSearchModal from "../relation/RelationSearchModal";
 
 /**
  * 获取字段的可用选项
@@ -50,8 +51,9 @@ function getAvailableOptions(field, recordData) {
  * @param {Function} onChange - 值变化回调
  * @param {Function} onBlur - 失焦回调（保存）
  * @param {Object} recordData - 当前记录的所有字段值（用于联动过滤）
+ * @param {Function} onOpenSearchModal - 打开关联搜索弹窗回调（用于 relation 类型）
  */
-export function CellEditor({ field, value, onChange, onBlur, recordData }) {
+export function CellEditor({ field, value, onChange, onBlur, recordData, onOpenSearchModal }) {
   // 获取可用选项（处理联动过滤）
   const availableOptions = useMemo(() => {
     return getAvailableOptions(field, recordData);
@@ -203,6 +205,23 @@ export function CellEditor({ field, value, onChange, onBlur, recordData }) {
         />
       );
 
+    case "relation": {
+      // 关联字段：打开搜索弹窗
+      return (
+        <Button
+          type="primary"
+          size="small"
+          onClick={() => {
+            if (onOpenSearchModal) {
+              onOpenSearchModal();
+            }
+          }}
+        >
+          选择记录
+        </Button>
+      );
+    }
+
     default:
       return <span>{String(value ?? "")}</span>;
   }
@@ -213,6 +232,7 @@ export function CellEditor({ field, value, onChange, onBlur, recordData }) {
  * @param {Object} field - 字段定义
  * @param {any} value - 当前值
  * @param {Object} recordData - 当前记录的所有字段值
+ * @param {Function} onClick - 点击回调（用于 relation 类型打开详情）
  */
 export function CellDisplay({ field, value, recordData, onClick }) {
   // 富文本特殊处理
@@ -329,6 +349,25 @@ export function CellDisplay({ field, value, recordData, onClick }) {
         >
           {text.length > 50 ? text.slice(0, 50) + "..." : text}
         </span>
+      );
+    }
+
+    case "relation": {
+      // 关联字段：显示选中的记录（简化显示，不依赖缓存数据）
+      if (!value || (Array.isArray(value) && value.length === 0)) {
+        return <span style={{ color: "#bfbfbf" }}>-</span>;
+      }
+      
+      const ids = Array.isArray(value) ? value : [value];
+      
+      return (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          {ids.map((id, idx) => (
+            <Tag key={idx} color="green">
+              {id}
+            </Tag>
+          ))}
+        </div>
       );
     }
 

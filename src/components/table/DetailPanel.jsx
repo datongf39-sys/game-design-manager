@@ -14,7 +14,7 @@ import {
   Button,
   Breadcrumb,
   Divider,
-  message,
+  message as antMessage,
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -23,6 +23,7 @@ import {
 } from "@ant-design/icons";
 import { CellEditor, CellDisplay } from "./CellEditor";
 import { getBreadcrumbPath, getAvailableParents } from "../../utils/treeHelper";
+import BacklinkPanel from "../relation/BacklinkPanel";
 
 const DetailPanel = ({
   record,
@@ -55,12 +56,41 @@ const DetailPanel = ({
 
     setEditingFieldId(null);
     setEditValue(null);
-    message.success("已保存");
+    antMessage.success("已保存");
   };
 
   const handleParentChange = (newParentId) => {
     onUpdate(record.id, { parentId: newParentId });
-    message.success("层级关系已更新");
+    antMessage.success("层级关系已更新");
+  };
+
+  const handleDelete = () => {
+    const result = onDelete(record.id);
+    if (result && result.success === false && result.backlinks) {
+      // 有引用关系，显示警告弹窗
+      const backlinkList = result.backlinks.map((link, idx) => (
+        <div key={idx} style={{ marginBottom: 4 }}>
+          <Tag color="blue">{link.sourceRecordId}</Tag>
+          <span>{link.sourceRecordName}</span>
+          <span style={{ color: "#999", fontSize: 12 }}> ({link.sourceModuleName} · {link.sourceFieldName})</span>
+        </div>
+      ));
+      
+      antMessage.error({
+        content: (
+          <div>
+            <div style={{ fontWeight: 500, marginBottom: 8 }}>无法删除：该记录被以下记录引用</div>
+            {backlinkList}
+          </div>
+        ),
+        duration: 5,
+        style={{ maxWidth: 600 }},
+      });
+      return;
+    }
+    
+    onClose();
+    antMessage.success("记录已删除");
   };
 
   const availableParents = useMemo(() => {
@@ -112,12 +142,7 @@ const DetailPanel = ({
             <Button
               danger
               icon={<DeleteOutlined />}
-              onClick={() => {
-                if (window.confirm(`确认删除记录 ${record.id}？`)) {
-                  onDelete(record.id);
-                  onClose();
-                }
-              }}
+              onClick={handleDelete}
             >
               删除
             </Button>
@@ -239,6 +264,19 @@ const DetailPanel = ({
           );
         })}
 
+        <Divider style={{ margin: "24px 0 16px" }} />
+        
+        {/* 反向关联面板 */}
+        <BacklinkPanel recordId={record.id} onRecordClick={(clickedId) => {
+          // 关闭当前面板，打开点击记录的详情
+          onClose();
+          setTimeout(() => {
+            if (window.openRecordDetail) {
+              window.openRecordDetail(clickedId);
+            }
+          }, 100);
+        }} />
+        
         <Divider style={{ margin: "24px 0 16px" }} />
         <div style={{ fontSize: 12, color: "#8c8c8c" }}>
           <div>创建时间：{new Date(record.createdAt).toLocaleString("zh-CN")}</div>
