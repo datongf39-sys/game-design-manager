@@ -3,18 +3,23 @@
  * 后端服务主入口
  */
 
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ES Module 的 __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 导入数据库（会自动初始化表）
-const db = require('./backend_backup/db/database');
+import db from './backend_backup/db/database.js';
 
 // 导入路由
-const formsRoutes = require('./backend_backup/routes/forms');
-const submissionsRoutes = require('./backend_backup/routes/submissions');
-const relationsRoutes = require('./backend_backup/routes/relations');
-const searchRoutes = require('./backend_backup/routes/search');
+import formsRoutes from './backend_backup/routes/forms.js';
+import submissionsRoutes from './backend_backup/routes/submissions.js';
+import relationsRoutes from './backend_backup/routes/relations.js';
+import searchRoutes from './backend_backup/routes/search.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -57,4 +62,4 @@ app.listen(PORT, () => {
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
-module.exports = app;
+export default app;
