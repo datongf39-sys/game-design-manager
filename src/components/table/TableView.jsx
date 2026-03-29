@@ -33,6 +33,7 @@ import {
   ColumnHeightOutlined,
   DeleteOutlined,
   EditOutlined,
+  InboxOutlined,
 } from "@ant-design/icons";
 import { useProjectStore } from "../../store/useProjectStore";
 import { CellEditor, CellDisplay } from "./CellEditor";
@@ -49,7 +50,7 @@ const ROW_HEIGHTS = {
   loose: { height: 64, padding: "12px 16px" },
 };
 
-const TableView = ({ onFieldConfig }) => {
+const TableView = ({ onFieldConfig, onOpenFormBuilder }) => {
   const {
     selectedModule,
     records,
@@ -73,6 +74,10 @@ const TableView = ({ onFieldConfig }) => {
   const [isRelationModalOpen, setIsRelationModalOpen] = useState(false);
   const [relationConfig, setRelationConfig] = useState(null); // { recordId, fieldId, targetModuleId, displayFieldId, multiple, selectedIds }
 
+  // 键盘导航状态
+  const [selectedCell, setSelectedCell] = useState(null); // { recordIndex, fieldIndex }
+  const tableRef = useRef(null);
+
   // 获取分组字段（用于确定前缀）
   const groupFieldForPrefix = useMemo(() => {
     if (!selectedModule?.fields) return null;
@@ -82,6 +87,110 @@ const TableView = ({ onFieldConfig }) => {
       f.options?.some(opt => opt.prefix)
     );
   }, [selectedModule]);
+
+  // 键盘快捷键处理
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // 如果在编辑状态，不处理快捷键
+      if (editingCell) return;
+
+      const { key, ctrlKey, metaKey, shiftKey } = e;
+
+      // 方向键导航
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(key)) {
+        e.preventDefault();
+        navigateCells(key, shiftKey);
+      }
+
+      // Enter 进入编辑
+      if (key === "Enter" && selectedCell) {
+        e.preventDefault();
+        enterEditMode();
+      }
+
+      // Tab 切换单元格
+      if (key === "Tab" && selectedCell) {
+        e.preventDefault();
+        navigateCells(shiftKey ? "ArrowLeft" : "ArrowRight");
+      }
+
+      // Escape 退出编辑
+      if (key === "Escape") {
+        e.preventDefault();
+        setEditingCell(null);
+        setEditValue(null);
+      }
+
+      // Delete/Backspace 清空单元格
+      if ((key === "Delete" || key === "Backspace") && selectedCell && !editingCell) {
+        e.preventDefault();
+        clearCell();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedCell, editingCell, records, selectedModule]);
+
+  // 单元格导航
+  const navigateCells = (direction) => {
+    if (!selectedCell) {
+      // 如果没有选中，选中第一个单元格
+      setSelectedCell({ recordIndex: 0, fieldIndex: 1 }); // 1 表示跳过 ID 列
+      return;
+    }
+
+    const fieldCount = (selectedModule?.fields?.length || 0) + 2; // +2 是 ID 列和操作列
+    const recordCount = records.length;
+
+    let { recordIndex, fieldIndex } = selectedCell;
+
+    switch (direction) {
+      case "ArrowUp":
+        recordIndex = Math.max(0, recordIndex - 1);
+        break;
+      case "ArrowDown":
+        recordIndex = Math.min(recordCount - 1, recordIndex + 1);
+        break;
+      case "ArrowLeft":
+        fieldIndex = Math.max(0, fieldIndex - 1);
+        break;
+      case "ArrowRight":
+        fieldIndex = Math.min(fieldCount - 1, fieldIndex + 1);
+        break;
+      default:
+        break;
+    }
+
+    setSelectedCell({ recordIndex, fieldIndex });
+  };
+
+  // 进入编辑模式
+  const enterEditMode = () => {
+    if (!selectedCell) return;
+
+    const record = records[selectedCell.recordIndex];
+    const fields = selectedModule?.fields || [];
+    const field = fields[selectedCell.fieldIndex - 1]; // -1 是因为有 ID 列
+
+    if (field && record) {
+      handleCellClick(record, field);
+    }
+  };
+
+  // 清空单元格
+  const clearCell = () => {
+    if (!selectedCell) return;
+
+    const record = records[selectedCell.recordIndex];
+    const fields = selectedModule?.fields || [];
+    const field = fields[selectedCell.fieldIndex - 1];
+
+    if (field && record && field.type !== "checkbox") {
+      updateRecord(record.id, { data: { [field.id]: null } });
+      message.success("已清空");
+    }
+  };
 
   // 过滤和排序记录
   const processedRecords = useMemo(() => {
@@ -212,8 +321,27 @@ const TableView = ({ onFieldConfig }) => {
 
   // 处理删除记录
   const handleDeleteRecord = (recordId) => {
-    deleteRecord(recordId);
-    message.success("记录已删除");
+    const result = deleteRecord(recordId);
+    if (result && result.success === false && result.backlinks) {
+      // 有引用关系，显示警告
+      const backlinkCount = result.backlinks.length;
+      message.error({
+        content: (
+          <div>
+            <div style={{ fontWeight: 500 }}>
+              无法删除：该记录被 {backlinkCount} 条其他记录引用
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
+              请先删除或修改引用该记录的关联关系
+            </div>
+          </div>
+        ),
+        duration: 5,
+        style: { maxWidth: 500 }
+      });
+    } else if (result && result.success) {
+      message.success("记录已删除");
+    }
   };
 
   // 构建表格列
@@ -268,13 +396,16 @@ const TableView = ({ onFieldConfig }) => {
             });
           },
         }),
-        render: (_, record) => {
+        render: (_, record, recordIndex) => {
           const isEditing =
             editingCell?.recordId === record.id &&
             editingCell?.fieldId === field.id;
 
           // 显式获取字段值，避免 value 为 undefined
           const fieldValue = record.data?.[field.id];
+
+          // 计算是否是选中的单元格
+          const isSelected = selectedCell?.recordIndex === recordIndex && selectedCell?.fieldIndex === index + 1; // +1 是因为有 ID 列
 
           if (isEditing) {
             return (
@@ -293,11 +424,17 @@ const TableView = ({ onFieldConfig }) => {
 
           return (
             <div
-              onClick={() => handleCellClick(record, field)}
+              onClick={() => {
+                setSelectedCell({ recordIndex, fieldIndex: index + 1 });
+                handleCellClick(record, field);
+              }}
               style={{
                 cursor: field.type === "checkbox" ? "pointer" : "pointer",
                 minHeight: 24,
                 padding: ROW_HEIGHTS[rowHeight].padding,
+                border: isSelected ? "2px solid #1890ff" : "1px solid transparent",
+                borderRadius: 4,
+                backgroundColor: isSelected ? "#e6f4ff" : "transparent",
               }}
             >
               <CellDisplay 
@@ -440,6 +577,14 @@ const TableView = ({ onFieldConfig }) => {
           {/* 字段配置 */}
           <Button icon={<SettingOutlined />} onClick={onFieldConfig}>
             字段配置
+          </Button>
+
+          {/* 表单管理按钮 */}
+          <Button
+            icon={<InboxOutlined />}
+            onClick={onOpenFormBuilder}
+          >
+            表单管理
           </Button>
 
           {/* 分组 */}

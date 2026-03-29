@@ -9,7 +9,7 @@
  * - 底部新建模块按钮
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Button,
   Input,
@@ -18,6 +18,7 @@ import {
   message,
   Tooltip,
   Menu,
+  Badge,
 } from "antd";
 import {
   LeftOutlined,
@@ -27,6 +28,7 @@ import {
   DeleteOutlined,
   MenuOutlined,
   TagOutlined,
+  InboxOutlined,
 } from "@ant-design/icons";
 import { useProjectStore } from "../store/useProjectStore";
 import { useNavigate } from "react-router-dom";
@@ -51,6 +53,24 @@ const Sidebar = ({ collapsed, onCollapse, onOpenPrefixManager }) => {
   const [editingName, setEditingName] = useState("");
   const [isNewModuleModalOpen, setIsNewModuleModalOpen] = useState(false);
   const [newModuleName, setNewModuleName] = useState("");
+  const [pendingCount, setPendingCount] = useState(0);
+
+  // 加载待处理数量
+  useEffect(() => {
+    loadPendingCount();
+  }, []);
+
+  const loadPendingCount = async () => {
+    try {
+      const response = await fetch("/api/submissions?status=pending");
+      if (response.ok) {
+        const data = await response.json();
+        setPendingCount(data.length || 0);
+      }
+    } catch (error) {
+      console.error("Failed to load pending count:", error);
+    }
+  };
 
   // 返回首页
   const handleBackHome = () => {
@@ -320,6 +340,29 @@ const Sidebar = ({ collapsed, onCollapse, onOpenPrefixManager }) => {
 
         {/* 底部按钮区域 */}
         <div style={{ padding: "12px", borderTop: "1px solid #f0f0f0" }}>
+          {/* 收件箱按钮 */}
+          {collapsed ? (
+            <Tooltip title={`收件箱${pendingCount > 0 ? `(${pendingCount})` : ""}`} placement="right">
+              <Badge count={pendingCount} offset={[-5, 5]}>
+                <Button
+                  icon={<InboxOutlined />}
+                  onClick={() => navigate("/inbox")}
+                  style={{ width: "100%", marginBottom: 8 }}
+                />
+              </Badge>
+            </Tooltip>
+          ) : (
+            <Badge count={pendingCount} offset={[-10, 5]}>
+              <Button
+                icon={<InboxOutlined />}
+                onClick={() => navigate("/inbox")}
+                style={{ width: "100%", marginBottom: 8 }}
+              >
+                收件箱
+              </Button>
+            </Badge>
+          )}
+
           {/* 前缀库管理按钮 */}
           {collapsed ? (
             <Tooltip title="前缀库管理" placement="right">

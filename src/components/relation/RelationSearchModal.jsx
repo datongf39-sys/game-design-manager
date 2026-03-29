@@ -67,7 +67,8 @@ const RelationSearchModal = ({
   };
 
   const getRecordDisplayName = (record) => {
-    return record.data[displayFieldId] || "未命名";
+    const name = record.data[displayFieldId] || record.data.f_name || "未命名";
+    return `${record.id} · ${name}`;
   };
 
   return (

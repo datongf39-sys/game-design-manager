@@ -102,6 +102,7 @@ export const storage = {
         let sourceRecord = null;
         let sourceModule = null;
         let sourceFieldName = null;
+        let sourceFieldName_byDisplayField = null;
         
         for (const projectId of allProjects.map(p => p.id)) {
           const modules = storage.get(`modules_${projectId}`) || [];
@@ -113,10 +114,28 @@ export const storage = {
               sourceModule = module;
               const field = module.fields?.find(f => f.id === link.sourceFieldId);
               sourceFieldName = field?.name || "未知字段";
+              
+              // 如果是 relation 字段，获取 displayFieldId 来读取正确的显示名称
+              if (field?.type === "relation" && field.relationConfig?.displayFieldId) {
+                sourceFieldName_byDisplayField = field.relationConfig.displayFieldId;
+              }
               break;
             }
           }
           if (sourceRecord) break;
+        }
+        
+        // 优先使用 displayFieldId 获取名称，否则使用第一个字段
+        let displayName = "未命名";
+        if (sourceRecord) {
+          if (sourceFieldName_byDisplayField && sourceRecord.data[sourceFieldName_byDisplayField]) {
+            displayName = sourceRecord.data[sourceFieldName_byDisplayField];
+          } else if (sourceRecord.data.f_name) {
+            displayName = sourceRecord.data.f_name;
+          } else {
+            const firstFieldKey = Object.keys(sourceRecord.data || {})[0];
+            displayName = firstFieldKey ? sourceRecord.data[firstFieldKey] : "未命名";
+          }
         }
         
         return {
@@ -125,7 +144,7 @@ export const storage = {
           sourceFieldName,
           sourceModuleId: sourceModule?.id,
           sourceModuleName: sourceModule?.name,
-          sourceRecordName: sourceRecord?.data?.[Object.keys(sourceRecord.data || {})[0]] || "未命名",
+          sourceRecordName: displayName,
         };
       });
     } catch (e) {

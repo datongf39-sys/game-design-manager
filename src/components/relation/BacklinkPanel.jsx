@@ -50,6 +50,19 @@ const BacklinkPanel = ({ recordId, onRecordClick }) => {
     }
   };
 
+  // 获取显示名称
+  const getRecordDisplayName = (link) => {
+    const sourceRecord = getRecordById(link.sourceRecordId);
+    if (sourceRecord && link.sourceFieldId) {
+      // 尝试从字段配置中获取 displayFieldId
+      const sourceModule = getModuleById(link.sourceModuleId);
+      const field = sourceModule?.fields?.find(f => f.id === link.sourceFieldId);
+      const displayFieldId = field?.relationConfig?.displayFieldId || "f_name";
+      return sourceRecord.data[displayFieldId] || sourceRecord.data.f_name || "未命名";
+    }
+    return link.sourceRecordName || "未命名";
+  };
+
   if (backlinks.length === 0) {
     return null; // 没有引用时不显示
   }
@@ -92,7 +105,7 @@ const BacklinkPanel = ({ recordId, onRecordClick }) => {
                   <div style={{ marginBottom: 4 }}>
                     <Tag color="blue">{link.sourceRecordId}</Tag>
                     <Text strong style={{ marginLeft: 8 }}>
-                      {link.sourceRecordName || "未命名"}
+                      {getRecordDisplayName(link)}
                     </Text>
                   </div>
                   <div style={{ fontSize: 12, color: "#666" }}>

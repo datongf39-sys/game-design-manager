@@ -206,19 +206,44 @@ export function CellEditor({ field, value, onChange, onBlur, recordData, onOpenS
       );
 
     case "relation": {
-      // 关联字段：打开搜索弹窗
+      // 关联字段：显示已选记录，点击打开搜索弹窗
+      const relationConfig = field.relationConfig || {};
+      const displayFieldId = relationConfig.displayFieldId;
+      const ids = Array.isArray(value) ? value : [];
+      
       return (
-        <Button
-          type="primary"
-          size="small"
-          onClick={() => {
-            if (onOpenSearchModal) {
-              onOpenSearchModal();
-            }
-          }}
-        >
-          选择记录
-        </Button>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          {ids.map((id, idx) => {
+            // 尝试从 recordData 或其他地方获取记录名称
+            // 简化处理：只显示 ID
+            return (
+              <Tag
+                key={idx}
+                color="green"
+                style={{ cursor: "pointer" }}
+                onClick={() => {
+                  // 点击 Tag 打开该记录的详情
+                  if (window.openRecordDetail) {
+                    window.openRecordDetail(id);
+                  }
+                }}
+              >
+                {id}
+              </Tag>
+            );
+          })}
+          <Button
+            type="primary"
+            size="small"
+            onClick={() => {
+              if (onOpenSearchModal) {
+                onOpenSearchModal();
+              }
+            }}
+          >
+            {ids.length === 0 ? "选择记录" : "添加"}
+          </Button>
+        </div>
       );
     }
 
@@ -353,20 +378,36 @@ export function CellDisplay({ field, value, recordData, onClick }) {
     }
 
     case "relation": {
-      // 关联字段：显示选中的记录（简化显示，不依赖缓存数据）
+      // 关联字段：显示选中的记录（Tag 形式：ID · 名称）
       if (!value || (Array.isArray(value) && value.length === 0)) {
         return <span style={{ color: "#bfbfbf" }}>-</span>;
       }
       
+      const relationConfig = field.relationConfig || {};
+      const displayFieldId = relationConfig.displayFieldId;
       const ids = Array.isArray(value) ? value : [value];
       
       return (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-          {ids.map((id, idx) => (
-            <Tag key={idx} color="green">
-              {id}
-            </Tag>
-          ))}
+          {ids.map((id, idx) => {
+            // 尝试从 recordData 中获取记录信息
+            // 注意：这里简化处理，实际可能需要从缓存或 store 中获取完整记录
+            return (
+              <Tag
+                key={idx}
+                color="green"
+                style={{ cursor: "pointer" }}
+                onClick={() => {
+                  // 点击 Tag 打开该记录的详情
+                  if (window.openRecordDetail) {
+                    window.openRecordDetail(id);
+                  }
+                }}
+              >
+                {id}
+              </Tag>
+            );
+          })}
         </div>
       );
     }

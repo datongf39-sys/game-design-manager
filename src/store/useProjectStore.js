@@ -218,12 +218,27 @@ export const useProjectStore = create((set, get) => ({
 
   /**
    * 获取项目的模块数量
-   * @param {string} projectId - 项目ID
+   * @param {string} projectId - 项目 ID
    * @returns {number} 模块数量
    */
   getModuleCount: (projectId) => {
     const modules = storage.getModules(projectId);
     return modules.length;
+  },
+
+  /**
+   * 根据 ID 获取模块
+   * @param {string} moduleId - 模块 ID
+   * @returns {Object|undefined} 模块对象
+   */
+  getModuleById: (moduleId) => {
+    const { projects } = get();
+    for (const projectId of projects.map(p => p.id)) {
+      const modules = storage.getModules(projectId) || [];
+      const module = modules.find(m => m.id === moduleId);
+      if (module) return module;
+    }
+    return undefined;
   },
 
   // ==================== Record Actions ====================
@@ -374,6 +389,59 @@ export const useProjectStore = create((set, get) => ({
    */
   getBacklinks: (recordId) => {
     return storage.getBacklinks(recordId) || [];
+  },
+
+  /**
+   * 搜索指定模块的记录
+   * @param {string} moduleId - 模块 ID
+   * @param {string} query - 搜索关键词
+   * @returns {Array} 匹配的记录列表
+   */
+  searchRecords: (moduleId, query = "") => {
+    const { modules, records } = get();
+    const module = modules.find(m => m.id === moduleId);
+    if (!module) return [];
+    
+    const moduleRecords = storage.getRecords(moduleId) || [];
+    
+    if (!query) {
+      return moduleRecords;
+    }
+    
+    const lowerQuery = query.toLowerCase();
+    return moduleRecords.filter(record => {
+      // 搜索 ID
+      if (record.id.toLowerCase().includes(lowerQuery)) return true;
+      // 搜索名称字段
+      const nameField = module.fields?.find(f => f.id === "f_name");
+      if (nameField && record.data[nameField.id]?.toLowerCase().includes(lowerQuery)) {
+        return true;
+      }
+      // 搜索所有字段
+      return Object.values(record.data).some(val =>
+        String(val).toLowerCase().includes(lowerQuery)
+      );
+    });
+  },
+
+  /**
+   * 根据 ID 获取记录
+   * @param {string} recordId - 记录 ID
+   * @returns {Object|null} 记录对象
+   */
+  getRecordById: (recordId) => {
+    const { modules } = get();
+    for (const projectId of (storage.get("projects") || []).map(p => p.id)) {
+      const projectModules = storage.get(`modules_${projectId}`) || [];
+      for (const module of projectModules) {
+        const moduleRecords = storage.get(`records_${module.id}`) || [];
+        const record = moduleRecords.find(r => r.id === recordId);
+        if (record) {
+          return record;
+        }
+      }
+    }
+    return null;
   },
 
   // ==================== Prefix Actions ====================

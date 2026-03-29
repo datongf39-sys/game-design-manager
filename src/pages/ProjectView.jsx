@@ -2,7 +2,7 @@
  * ProjectView.jsx
  * 项目内部视图
  * 功能：
- * - 左侧固定导航栏（宽220px，可折叠）
+ * - 左侧固定导航栏（宽 220px，可折叠）
  * - 右侧主内容区显示表格视图或空占位
  */
 
@@ -20,6 +20,7 @@ import Sidebar from "../components/Sidebar";
 import TableView from "../components/table/TableView";
 import FieldConfig from "../components/table/FieldConfig";
 import PrefixManager from "../components/prefix/PrefixManager";
+import FormBuilder from "../components/forms/FormBuilder";
 
 const ProjectView = () => {
   const { projectId } = useParams();
@@ -38,6 +39,7 @@ const ProjectView = () => {
   const [loading, setLoading] = useState(true);
   const [isFieldConfigOpen, setIsFieldConfigOpen] = useState(false);
   const [isPrefixManagerOpen, setIsPrefixManagerOpen] = useState(false);
+  const [isFormBuilderOpen, setIsFormBuilderOpen] = useState(false);
 
   // 初始化加载
   useEffect(() => {
@@ -155,6 +157,7 @@ const ProjectView = () => {
               /* 选中模块后的表格视图 */
               <TableView 
                 onFieldConfig={() => setIsFieldConfigOpen(true)}
+                onOpenFormBuilder={() => setIsFormBuilderOpen(true)}
               />
             ) : (
               /* 未选中模块时的空占位 */
@@ -249,6 +252,13 @@ const ProjectView = () => {
       <PrefixManager
         visible={isPrefixManagerOpen}
         onClose={() => setIsPrefixManagerOpen(false)}
+      />
+
+      {/* 表单管理弹窗 */}
+      <FormBuilder
+        visible={isFormBuilderOpen}
+        onClose={() => setIsFormBuilderOpen(false)}
+        moduleId={selectedModule?.id}
       />
     </ConfigProvider>
   );

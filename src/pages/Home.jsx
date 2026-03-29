@@ -18,7 +18,7 @@ import {
   Row,
   Col,
   message,
-  ConfigProvider,
+  Space,
 } from "antd";
 import { PlusOutlined, AppstoreOutlined } from "@ant-design/icons";
 import { useProjectStore } from "../store/useProjectStore";
@@ -78,21 +78,13 @@ const Home = () => {
   };
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: "#2B4C7E",
-          colorInfo: "#4F8EF7",
-        },
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#f5f7fa",
+        padding: "40px 48px",
       }}
     >
-      <div
-        style={{
-          minHeight: "100vh",
-          backgroundColor: "#f5f7fa",
-          padding: "40px 48px",
-        }}
-      >
         {/* 头部 */}
         <div
           style={{
@@ -117,20 +109,22 @@ const Home = () => {
               管理和组织你的游戏设计项目
             </p>
           </div>
-          <Button
-            type="primary"
-            size="large"
-            icon={<PlusOutlined />}
-            onClick={showModal}
-            style={{
-              backgroundColor: "#2B4C7E",
-              borderRadius: 8,
-              height: 44,
-              padding: "0 24px",
-            }}
-          >
-            新建项目
-          </Button>
+          <Space>
+            <Button
+              type="primary"
+              size="large"
+              icon={<PlusOutlined />}
+              onClick={showModal}
+              style={{
+                backgroundColor: "#2B4C7E",
+                borderRadius: 8,
+                height: 44,
+                padding: "0 24px",
+              }}
+            >
+              新建项目
+            </Button>
+          </Space>
         </div>
 
         {/* 项目列表 */}
@@ -307,7 +301,6 @@ const Home = () => {
           </div>
         </Modal>
       </div>
-    </ConfigProvider>
   );
 };
 

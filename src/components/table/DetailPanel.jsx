@@ -3,7 +3,7 @@
  * 详情面板组件
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Card,
   Form,
@@ -15,15 +15,22 @@ import {
   Breadcrumb,
   Divider,
   message as antMessage,
+  Collapse,
+  List,
+  Typography,
 } from "antd";
 import {
   ArrowLeftOutlined,
   DeleteOutlined,
   HomeOutlined,
+  MessageOutlined,
+  RightOutlined,
 } from "@ant-design/icons";
 import { CellEditor, CellDisplay } from "./CellEditor";
 import { getBreadcrumbPath, getAvailableParents } from "../../utils/treeHelper";
 import BacklinkPanel from "../relation/BacklinkPanel";
+
+const { Text } = Typography;
 
 const DetailPanel = ({
   record,
@@ -36,6 +43,30 @@ const DetailPanel = ({
 }) => {
   const [editingFieldId, setEditingFieldId] = useState(null);
   const [editValue, setEditValue] = useState(null);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
+
+  // 加载关联的反馈
+  useEffect(() => {
+    if (record.id) {
+      loadFeedbacks();
+    }
+  }, [record.id]);
+
+  const loadFeedbacks = async () => {
+    setLoadingFeedbacks(true);
+    try {
+      const response = await fetch(`/api/submissions/record/${record.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setFeedbacks(data);
+      }
+    } catch (error) {
+      console.error("Failed to load feedbacks:", error);
+    } finally {
+      setLoadingFeedbacks(false);
+    }
+  };
 
   const breadcrumbPath = useMemo(() => {
     return getBreadcrumbPath(allRecords, record.id, nameFieldId);
@@ -276,6 +307,85 @@ const DetailPanel = ({
             }
           }, 100);
         }} />
+        
+        <Divider style={{ margin: "24px 0 16px" }} />
+
+        {/* 反馈面板 */}
+        <Card
+          size="small"
+          title={
+            <Space>
+              <MessageOutlined style={{ color: "#1890ff" }} />
+              <span>关联反馈</span>
+              {feedbacks.length > 0 && (
+                <Tag color="orange">{feedbacks.length}</Tag>
+              )}
+            </Space>
+          }
+          type="inner"
+        >
+          {loadingFeedbacks ? (
+            <div style={{ textAlign: "center", padding: 20 }}>加载中...</div>
+          ) : feedbacks.length === 0 ? (
+            <div style={{ color: "#999", textAlign: "center", padding: 20 }}>
+              暂无关联反馈
+            </div>
+          ) : (
+            <List
+              dataSource={feedbacks}
+              renderItem={(item) => {
+                const statusColors = {
+                  pending: "orange",
+                  in_progress: "blue",
+                  done: "green",
+                  rejected: "red",
+                };
+                const statusLabels = {
+                  pending: "待处理",
+                  in_progress: "处理中",
+                  done: "已完成",
+                  rejected: "不采纳",
+                };
+
+                return (
+                  <List.Item
+                    style={{
+                      padding: "12px 0",
+                      borderBottom: "1px solid #f0f0f0",
+                    }}
+                  >
+                    <Space style={{ width: "100%" }} align="start">
+                      <div style={{ flex: 1 }}>
+                        <div style={{ marginBottom: 8 }}>
+                          <Tag color="purple">{item.formTitle}</Tag>
+                          <Tag
+                            color={statusColors[item.status] || "default"}
+                            style={{ marginLeft: 8 }}
+                          >
+                            {statusLabels[item.status] || item.status}
+                          </Tag>
+                        </div>
+                        <div style={{ fontSize: 13, color: "#666" }}>
+                          {Object.entries(item.data || {}).map(([key, value]) => (
+                            <div key={key} style={{ marginBottom: 4 }}>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                {key}:
+                              </Text>{" "}
+                              {String(value)}
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#999", marginTop: 8 }}>
+                          {new Date(item.submittedAt).toLocaleString("zh-CN")}
+                        </div>
+                      </div>
+                    </Space>
+                  </List.Item>
+                );
+              }}
+            />
+          )}
+        </Card>
         
         <Divider style={{ margin: "24px 0 16px" }} />
         <div style={{ fontSize: 12, color: "#8c8c8c" }}>
