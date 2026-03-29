@@ -23,13 +23,15 @@ import {
   Checkbox,
   Divider,
   Card,
+} from "antd";
+import {
   CopyOutlined,
   LinkOutlined,
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   PoweroffOutlined,
-} from "antd";
+} from "@ant-design/icons";
 import { useProjectStore } from "../../store/useProjectStore";
 
 const FormBuilder = ({ visible, onClose, moduleId }) => {

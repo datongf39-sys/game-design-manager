@@ -186,14 +186,10 @@ const Inbox = () => {
     }
 
     // 构建记录数据
-    const recordData = {};
-    // 复制提交数据到记录
-    Object.entries(submission.data || {}).forEach(([key, value]) => {
-      recordData[key] = value;
-    });
-
-    // 添加备注说明来源
-    recordData.f_source = `来自表单反馈：${submission.formTitle}`;
+    const recordData = {
+      ...submission.data,
+      f_source: `来自表单反馈：${submission.formTitle}`
+    };
 
     // 创建记录
     const newRecord = addRecord(recordData, null, submission.linkedRecordId);
